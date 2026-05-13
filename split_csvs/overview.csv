@@ -1,0 +1,5 @@
+vlcode,village_name,district,state,total_population,total_area_ha,builtup_area_ha,agricultural_area_ha,water_bodies_area_ha,total_households,total_livestock,total_vehicles
+200001,Hasudi Ausanpur,Siddharth Nagar,Uttar Pradesh,1416,206,16,138,36,167,354,94
+200002,Gosaipur,Varanasi,Uttar Pradesh,548,22.77,0.63,20.25,0.09,107,316,87
+200003,Bhatsar,Varanasi,Uttar Pradesh,2132,474.42,173.39,275.61,25,292,816,
+200004,Khewali,Varanasi,Uttar Pradesh,1803,273,93.38,3.14,6.17,287,582,331
