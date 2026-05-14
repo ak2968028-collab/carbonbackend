@@ -6,6 +6,7 @@ from .views import (
     InterventionsViewSet,
     CarbonBudgetViewSet,
     ScenariosViewSet,
+    AdminUserViewSet,
 )
 
 router = DefaultRouter()
@@ -15,5 +16,6 @@ router.register(r"sequestration", SequestrationViewSet, basename="sequestration"
 router.register(r"interventions", InterventionsViewSet, basename="interventions")
 router.register(r"carbon-budget", CarbonBudgetViewSet, basename="carbon-budget")
 router.register(r"scenarios", ScenariosViewSet, basename="scenarios")
+router.register(r"admin-users", AdminUserViewSet, basename="admin-users")
 
 urlpatterns = router.urls

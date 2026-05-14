@@ -1,4 +1,31 @@
 from django.db import models
+from django.contrib.auth.hashers import check_password, make_password
+
+
+class AdminUser(models.Model):
+    username = models.CharField(max_length=150, unique=True)
+    password = models.CharField(max_length=128)
+    email = models.EmailField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "admin_users"
+
+    def __str__(self):
+        return self.username
+
+    def set_password(self, raw_password):
+        self.password = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        return check_password(raw_password, self.password)
+
+    def save(self, *args, **kwargs):
+        if self.password and not self.password.startswith(("pbkdf2_", "argon2", "bcrypt", "scrypt")):
+            self.set_password(self.password)
+        super().save(*args, **kwargs)
 
 
 class Overview(models.Model):

@@ -1,7 +1,8 @@
 from django.db import connection
+from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .models import CarbonBudget, Emissions, Interventions, Overview, Scenarios, Sequestration
+from .models import AdminUser, CarbonBudget, Emissions, Interventions, Overview, Scenarios, Sequestration
 
 
 def get_live_columns(table_name):
@@ -88,3 +89,42 @@ class CarbonBudgetSerializer(LiveTableSerializer):
 class ScenariosSerializer(LiveTableSerializer):
     class Meta:
         model = Scenarios
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False, allow_blank=False)
+
+    class Meta:
+        model = AdminUser
+        fields = (
+            "id",
+            "username",
+            "email",
+            "password",
+            "is_active",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "created_at", "updated_at")
+
+    def validate_password(self, value):
+        validate_password(value)
+        return value
+
+    def create(self, validated_data):
+        password = validated_data.pop("password", None)
+        if not password:
+            raise serializers.ValidationError({"password": "Password is required"})
+        user = self.Meta.model(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop("password", None)
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        return instance

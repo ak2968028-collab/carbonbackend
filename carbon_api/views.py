@@ -1,9 +1,10 @@
 from django.db import connection, transaction
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import CarbonBudget, Emissions, Interventions, Overview, Scenarios, Sequestration
+from .models import AdminUser, CarbonBudget, Emissions, Interventions, Overview, Scenarios, Sequestration
 from .serializers import (
     CarbonBudgetSerializer,
     EmissionsSerializer,
@@ -11,6 +12,7 @@ from .serializers import (
     OverviewSerializer,
     ScenariosSerializer,
     SequestrationSerializer,
+    AdminUserSerializer,
     get_live_columns,
 )
 
@@ -24,24 +26,16 @@ def _live_columns(table: str):
 
 
 class DynamicModelViewSet(viewsets.ViewSet):
-    """
-    Fully dynamic ViewSet backed by raw SQL + live PRAGMA introspection.
-
-    Endpoints per resource:
-      GET    /           list all rows
-      POST   /           create row
-      GET    /<vlcode>/  retrieve one row
-      PUT    /<vlcode>/  full replace
-      PATCH  /<vlcode>/  partial update
-      DELETE /<vlcode>/  delete
-
-      GET    /schema/         live column list
-      POST   /add-field/      { "field_name": "x" }   → adds REAL column
-      POST   /remove-field/   { "field_name": "x" }   → drops column
-    """
+    
 
     queryset = None          # set in subclass
     serializer_class = None  # set in subclass
+
+    # Read actions are public; all write/schema-mutation actions require auth
+    def get_permissions(self):
+        if self.action in ("list", "retrieve", "schema"):
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
     # ------------------------------------------------------------------ helpers
 
@@ -227,3 +221,36 @@ class CarbonBudgetViewSet(DynamicModelViewSet):
 class ScenariosViewSet(DynamicModelViewSet):
     queryset = Scenarios.objects.all()
     serializer_class = ScenariosSerializer
+
+
+class AdminUserViewSet(viewsets.ModelViewSet):
+    serializer_class = AdminUserSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+
+    def get_queryset(self):
+        return AdminUser.objects.order_by("username")
+
+    def partial_update(self, request, *args, **kwargs):
+        admin_user = self.get_object()
+        if admin_user.username == request.user.username and request.data.get("is_active") is False:
+            return Response(
+                {"error": "You cannot disable the admin user you are currently logged in as"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        admin_user = self.get_object()
+        if admin_user.username == request.user.username:
+            return Response(
+                {"error": "You cannot delete the admin user you are currently logged in as"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        active_admins_after_delete = self.get_queryset().filter(is_active=True).exclude(pk=admin_user.pk).count()
+        if active_admins_after_delete < 1:
+            return Response(
+                {"error": "At least one active admin user must remain"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().destroy(request, *args, **kwargs)
